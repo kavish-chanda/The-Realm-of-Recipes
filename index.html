@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Realm of Recipes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="sparks" class="sparks" aria-hidden="true"></div>
+
+<section id="landing" class="screen show">
+  <p class="eyebrow">Welcome to</p>
+  <h1>The Realm of Recipes</h1>
+  <p class="lead">A cozy kingdom of cookbooks. Search famous dishes, browse by category, turn what's in your fridge into dinner, scale servings, build a shopping list, and cook step by step with timers.</p>
+  <button id="enterRealm" class="gold big-btn">Enter the Realm</button>
+</section>
+
+<section id="bookStage" class="screen">
+  <div id="book" class="book">
+    <div class="cover">
+      <div class="cover-front"><div class="crest">❦</div><h2>The Realm of Recipes</h2><p>by Kavish</p></div>
+      <div class="cover-back"></div>
+    </div>
+    <div class="titlepage">
+      <h2>The Realm of Recipes</h2><div class="rule"></div><p>by Kavish</p>
+      <button id="openBook" class="gold">Enter</button>
+    </div>
+  </div>
+</section>
+
+<main id="cookbook" class="screen">
+  <header class="cb-head">
+    <h2>The Realm of Recipes</h2>
+    <nav id="tabs" class="edge">
+      <button class="on" data-tab="search">Search</button>
+      <button data-tab="famous">Famous</button>
+      <button data-tab="categories">Categories</button>
+      <button data-tab="cuisines">Cuisines</button>
+      <button data-tab="drinks">Drinks</button>
+      <button data-tab="fridge">Fridge</button>
+      <button data-tab="saved">Saved</button>
+      <button data-tab="list">List</button>
+    </nav>
+  </header>
+  <div class="page">
+    <div id="pane-search" class="pane active">
+      <div id="pick" class="pick"></div>
+      <div class="row searchbox">
+        <input id="q" type="search" placeholder="Search any dish, like pasta or curry" autocomplete="off" />
+        <button id="sGo" class="gold">Search</button>
+        <button id="rand" class="chip">Surprise me</button>
+        <div id="ac" class="ac" hidden></div>
+      </div>
+      <div id="sugg" class="chips"></div>
+      <p class="msg">Pick a mood:</p><div id="moods" class="chips"></div>
+      <p class="msg">Or browse every recipe by letter:</p><div id="az" class="az"></div>
+      <p id="sMsg" class="msg"></p><div id="sRes" class="grid"></div>
+      <h3 class="sec">Trending today</h3><div id="trend" class="grid"></div>
+      <h3 id="rvh" class="sec" hidden>Recently viewed</h3><div id="rv" class="grid"></div>
+    </div>
+    <div id="pane-famous" class="pane"><h3>Famous dishes</h3><div id="fRes" class="grid"></div></div>
+    <div id="pane-categories" class="pane"><div id="catList" class="chips"></div><div id="cRes" class="grid"></div></div>
+    <div id="pane-cuisines" class="pane"><div id="areaList" class="chips"></div><div id="aRes" class="grid"></div></div>
+    <div id="pane-drinks" class="pane">
+      <h3>Drinks</h3>
+      <div class="row"><input id="dq" type="search" placeholder="Search drinks, like mojito or smoothie" autocomplete="off" /><button id="dGo" class="gold">Search</button><button id="dRand" class="chip">Surprise me</button></div>
+      <div id="dCats" class="chips"></div>
+      <p id="dMsg" class="msg"></p><div id="dRes" class="grid"></div>
+    </div>
+    <div id="pane-fridge" class="pane">
+      <h3>What's in your fridge?</h3>
+      <div class="row"><input id="fi" type="search" placeholder="chicken, rice, onion" /><button id="fGo" class="gold">Find recipes</button></div>
+      <p id="fMsg" class="msg"></p><div id="fgRes" class="grid"></div>
+    </div>
+    <div id="pane-saved" class="pane"><h3>Saved recipes</h3><p id="svMsg" class="msg"></p><div id="svRes" class="grid"></div></div>
+    <div id="pane-list" class="pane">
+      <h3>Shopping list</h3><p id="lMsg" class="msg"></p><ul id="shop" class="shop"></ul>
+      <button id="clearList" class="chip">Clear list</button> <button id="copyList" class="chip">Copy list</button>
+    </div>
+  </div>
+  <footer class="foot">Recipes from TheMealDB · Made by Kavish</footer>
+</main>
+
+<div id="recipe" class="overlay" hidden><div class="sheet"><button id="rClose" class="x" aria-label="Close">×</button><div id="rBody"></div></div></div>
+
+<div id="cook" class="overlay cookmode" hidden><div class="sheet">
+  <button id="cClose" class="x" aria-label="Close">×</button>
+  <div id="cStep" class="eyebrow"></div><div class="bar"><i id="cBar"></i></div>
+  <p id="cText" class="bigtext"></p>
+  <button id="cSuggest" class="chip" hidden></button>
+  <div class="timer"><div id="tDisp" class="tdisp">0:00</div>
+    <div class="row"><button id="tToggle" class="gold">Start</button>
+      <button class="chip" data-t="5">5 min</button><button class="chip" data-t="10">10 min</button><button class="chip" data-t="15">15 min</button></div></div>
+  <div class="row"><button id="cPrev" class="chip">Back</button><button id="cNext" class="gold">Next</button></div>
+</div></div>
+
+<div class="watermark" aria-hidden="true">Kavish Chanda</div>
+
+<script src="app.js"></script>
+</body>
+</html>
