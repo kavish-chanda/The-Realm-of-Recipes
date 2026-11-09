@@ -1,7 +1,21 @@
 const API = "https://www.themealdb.com/api/json/v1/1/";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const api = async (p) => { try { return await (await fetch(API + p)).json(); } catch (e) { return {}; } };
+const apiCache = new Map();
+const api = async (p) => {
+  const cacheable = !p.startsWith("random");
+  if (cacheable && apiCache.has(p)) return apiCache.get(p);
+  for (let i = 0; i < 2; i++) {
+    try {
+      const r = await fetch(API + p);
+      if (!r.ok) throw new Error("bad");
+      const d = await r.json();
+      if (cacheable) apiCache.set(p, d);
+      return d;
+    } catch (e) { await new Promise((res) => setTimeout(res, 400)); }
+  }
+  return {};
+};
 const COCKTAIL = "https://www.thecocktaildb.com/api/json/v1/1/";
 // Drinks are reshaped to look like meals, so cards, recipes, saving and cook mode all just work
 const cocktail = async (p) => {
@@ -31,7 +45,7 @@ for (let i = 0; i < 30; i++) {
 $("enterRealm").onclick = () => { show("bookStage"); setTimeout(() => $("book").classList.add("open"), 900); };
 $("openBook").onclick = () => {
   $("book").classList.add("turn");
-  setTimeout(() => { show("cookbook"); loadFamous(); loadCategories(); loadAreas(); loadDrinks(); loadPick(); loadTrend(); renderViewed(); buildMoods(); renderList(); }, 800);
+  setTimeout(() => { show("cookbook"); loadFamous(); loadCategories(); loadAreas(); loadDrinks(); loadPick(); loadTrend(); renderViewed(); openFromHash(); updateCooked(); buildMoods(); renderList(); }, 800);
 };
 
 // Tabs
@@ -57,6 +71,15 @@ function cards(el, meals, counts) {
     const n = counts && counts[m.idMeal];
     c.querySelector("span").textContent = m.strMeal + (n > 1 ? " · " + n + " matches" : "");
     c.onclick = () => openRecipe(m.idMeal);
+    const hs = document.createElement("span");
+    hs.className = "heart";
+    hs.setAttribute("role", "button");
+    hs.setAttribute("aria-label", "Save recipe");
+    const saved = favs().some((x) => x.idMeal === m.idMeal);
+    hs.textContent = saved ? "♥" : "♡";
+    hs.classList.toggle("on", saved);
+    hs.onclick = (e) => { e.stopPropagation(); const on = toggleFav(m); hs.textContent = on ? "♥" : "♡"; hs.classList.toggle("on", on); };
+    c.appendChild(hs);
     tilt(c);
     el.appendChild(c);
   });
@@ -192,11 +215,12 @@ function renderRecipe() {
   const { m, ing, steps } = cur, f = serv / (cur.base || 4);
   $("rBody").innerHTML =
     `<img class="hero" src="${esc(m.strMealThumb)}${/themealdb/.test(m.strMealThumb) ? "/large" : ""}" alt=""><h2>${esc(m.strMeal)}</h2>` +
-    `<p class="meta">${esc(m.strArea || "")} · ${esc(m.strCategory || "")}</p>` +
+    `<p class="meta">${esc(m.strArea || "")} · ${esc(m.strCategory || "")}${cookTime(steps)}</p>` +
     `<div class="serv"><button id="sm" class="chip">−</button><span>Serves ${serv}</span><button id="sp" class="chip">+</button></div>` +
     `<h3>Ingredients</h3><ul class="ing">${ing.map((i, n) => `<li style="animation-delay:${n * 40}ms"><b>${esc(scale(i.q, f))}</b> ${esc(i.n)}</li>`).join("")}</ul>` +
-    `<div class="row"><button id="addList" class="gold">Add to shopping list</button><button id="cookBtn" class="gold">Start cooking</button><button id="favR" class="chip">♡ Save</button><button id="printR" class="chip">Print</button></div>` +
+    `<div class="row"><button id="addList" class="gold">Add to shopping list</button><button id="cookBtn" class="gold">Start cooking</button><button id="favR" class="chip">♡ Save</button><button id="printR" class="chip">Print</button><button id="shareR" class="chip">Share</button></div>` +
     `<h3>Method</h3><ol class="steps">${steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>`;
+  document.querySelectorAll("#rBody .ing li").forEach((li) => (li.onclick = () => li.classList.toggle("got")));
   $("sm").onclick = () => { serv = Math.max(1, serv - 1); renderRecipe(); };
   $("sp").onclick = () => { serv = Math.min(24, serv + 1); renderRecipe(); };
   $("addList").onclick = () => {
@@ -210,6 +234,11 @@ function renderRecipe() {
   $("favR").textContent = favs().some((x) => x.idMeal === m.idMeal) ? "♥ Saved" : "♡ Save";
   $("favR").onclick = () => { $("favR").textContent = toggleFav(m) ? "♥ Saved" : "♡ Save"; };
   $("printR").onclick = () => window.print();
+  $("shareR").onclick = () => {
+    const link = location.href.split("#")[0] + "#r=" + m.idMeal;
+    if (navigator.clipboard) navigator.clipboard.writeText(link);
+    $("shareR").textContent = "Link copied ✓";
+  };
   const me = cur;
   if (me.more) addMore();
   else if (!me.fetching) {
@@ -309,7 +338,7 @@ function setTimer(sec) { stopTimer(); tLeft = sec; $("tDisp").textContent = fmt(
 $("tToggle").onclick = () => { if (tId) stopTimer(); else if (tLeft > 0) runTimer(); };
 document.querySelectorAll("[data-t]").forEach((b) => (b.onclick = () => setTimer(+b.dataset.t * 60)));
 $("cPrev").onclick = () => { if (ci > 0) { ci--; renderCook(); } };
-$("cNext").onclick = () => { if (ci < cur.steps.length - 1) { ci++; renderCook(); } else { $("cook").hidden = true; stopTimer(); confetti(); } };
+$("cNext").onclick = () => { if (ci < cur.steps.length - 1) { ci++; renderCook(); } else { $("cook").hidden = true; stopTimer(); confetti(); bumpCooked(); } };
 $("cClose").onclick = () => { $("cook").hidden = true; stopTimer(); };
 $("rClose").onclick = () => { $("recipe").hidden = true; };
 document.addEventListener("keydown", (e) => {
@@ -385,20 +414,27 @@ async function loadPick() {
 }
 
 async function loadAreas() {
-  const d = await api("list.php?a=list");
   const el = $("areaList");
+  el.innerHTML = '<p class="msg">Loading cuisines...</p>';
+  const d = await api("list.php?a=list");
+  const areas = (d.meals || []).map((a) => a.strArea);
+  const lists = await Promise.all(areas.map((a) => api("filter.php?a=" + encodeURIComponent(a))));
   el.innerHTML = "";
-  (d.meals || []).forEach((a) => {
+  let first = null;
+  areas.forEach((a, i) => {
+    const ms = lists[i].meals || [];
+    if (!ms.length) return; // only show cuisines that really have recipes
     const b = document.createElement("button");
     b.className = "chip";
-    b.textContent = a.strArea;
-    b.onclick = async () => {
+    b.textContent = a + " (" + ms.length + ")";
+    b.onclick = () => {
       document.querySelectorAll("#areaList .chip").forEach((x) => x.classList.toggle("on", x === b));
-      const r = await api("filter.php?a=" + encodeURIComponent(a.strArea));
-      cards($("aRes"), r.meals);
+      cards($("aRes"), ms);
     };
     el.appendChild(b);
+    first = first || b;
   });
+  if (first) first.click(); else el.textContent = "Couldn't load cuisines. Check your connection and refresh.";
 }
 
 // ---------- Tilt, confetti, saved, viewed, trending, moods ----------
@@ -524,3 +560,85 @@ async function loadDrinks() {
   } catch (e) {}
   first.click();
 }
+
+// ---------- Extras ----------
+function cookTime(steps) {
+  let mins = 0;
+  steps.forEach((t) => {
+    const m = t.match(/(\d+)(?:\s*(?:-|to)\s*\d+)?\s*(minutes?|mins?|hours?|hrs?)/i);
+    if (m) mins += +m[1] * (/^h/i.test(m[2]) ? 60 : 1);
+  });
+  return mins ? " · about " + mins + " min of cooking" : "";
+}
+
+function updateCooked() {
+  const n = store.get("rr_cooked", 0);
+  $("cooked").hidden = !n;
+  $("cooked").textContent = "★ " + n + (n === 1 ? " meal cooked" : " meals cooked");
+}
+function bumpCooked() { store.set("rr_cooked", store.get("rr_cooked", 0) + 1); updateCooked(); }
+
+function openFromHash() {
+  const m = location.hash.match(/^#r=(d?\w+)/);
+  if (m) openRecipe(m[1]);
+}
+
+$("cSpeak").onclick = () => {
+  try { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(cur.steps[ci])); } catch (e) {}
+};
+$("cClose").addEventListener("click", () => { try { speechSynthesis.cancel(); } catch (e) {} });
+
+// Keyboard shortcuts
+const tabBtns = [...document.querySelectorAll("#tabs button")];
+function toggleHelp() {
+  let h = $("help");
+  if (h) { h.remove(); return; }
+  h = document.createElement("div");
+  h.id = "help";
+  h.className = "overlay";
+  h.innerHTML = '<div class="sheet"><button class="x" aria-label="Close">×</button><h2>Shortcuts</h2><ul class="keys"><li><b>/</b> Search</li><li><b>r</b> Random recipe</li><li><b>1-9</b> Jump to a tab</li><li><b>← →</b> Cook mode steps</li><li><b>Esc</b> Close</li><li><b>?</b> This list</li></ul></div>';
+  h.onclick = (e) => { if (e.target === h || e.target.className === "x") h.remove(); };
+  document.body.appendChild(h);
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("help")) $("help").remove();
+  if (!$("cookbook").classList.contains("show") || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.metaKey || e.ctrlKey) return;
+  if (e.key === "/") { e.preventDefault(); tabBtns[0].click(); $("q").focus(); }
+  else if (e.key === "r") $("rand").click();
+  else if (e.key === "?") toggleHelp();
+  else if (/^[1-9]$/.test(e.key) && tabBtns[+e.key - 1]) tabBtns[+e.key - 1].click();
+});
+
+// Sparkle trail
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  let last = 0;
+  document.addEventListener("pointermove", (e) => {
+    if (!$("cookbook").classList.contains("show") || e.pointerType === "touch") return;
+    const t = Date.now();
+    if (t - last < 45) return;
+    last = t;
+    const s = document.createElement("span");
+    s.className = "spark";
+    s.style.left = e.clientX + "px";
+    s.style.top = e.clientY + "px";
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 700);
+  });
+}
+
+// Scroll progress and back to top
+const progress = document.createElement("div");
+progress.className = "progress";
+document.body.appendChild(progress);
+const toTop = document.createElement("button");
+toTop.className = "totop";
+toTop.textContent = "↑";
+toTop.hidden = true;
+toTop.setAttribute("aria-label", "Back to top");
+toTop.onclick = () => $("cookbook").scrollTo({ top: 0, behavior: "smooth" });
+document.body.appendChild(toTop);
+$("cookbook").addEventListener("scroll", () => {
+  const c = $("cookbook"), max = c.scrollHeight - c.clientHeight;
+  progress.style.width = (max > 0 ? (c.scrollTop / max) * 100 : 0) + "%";
+  toTop.hidden = c.scrollTop < 500;
+});

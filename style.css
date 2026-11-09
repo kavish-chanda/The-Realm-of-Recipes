@@ -1130,3 +1130,171 @@ input[type=search]:focus {
         color: #444
     }
 }
+
+/* ---------- Interactive and cleaner touches ---------- */
+.heart {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: rgba(10, 25, 15, .55);
+    backdrop-filter: blur(6px);
+    color: #fff;
+    font-size: 1.1rem;
+    opacity: 0;
+    transform: scale(.8);
+    transition: opacity .25s, transform .25s, background .25s
+}
+
+.card:hover .heart,
+.heart.on {
+    opacity: 1;
+    transform: none
+}
+
+.heart.on {
+    color: #ff8a8a
+}
+
+.heart:hover {
+    background: rgba(10, 25, 15, .85);
+    transform: scale(1.12)
+}
+
+@media (hover:none) {
+    .heart {
+        opacity: 1;
+        transform: none
+    }
+}
+
+#trend,
+#rv {
+    display: flex;
+    overflow-x: auto;
+    gap: 16px;
+    scroll-snap-type: x mandatory;
+    padding: 4px 2px 14px;
+    scrollbar-width: thin
+}
+
+#trend .card,
+#rv .card {
+    flex: 0 0 210px;
+    scroll-snap-align: start
+}
+
+.azd summary {
+    cursor: pointer;
+    display: inline-block;
+    padding: 6px 14px;
+    border: 1px solid rgba(255, 255, 255, .2);
+    border-radius: 999px;
+    margin: 10px 0;
+    list-style: none;
+    transition: background .2s
+}
+
+.azd summary::-webkit-details-marker {
+    display: none
+}
+
+.azd summary:hover,
+.azd[open] summary {
+    background: var(--gold);
+    color: #241a05
+}
+
+.ing li {
+    cursor: pointer;
+    transition: opacity .2s
+}
+
+.ing li.got {
+    text-decoration: line-through;
+    opacity: .45
+}
+
+.cooked {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: rgba(217, 180, 90, .15);
+    color: var(--gold2);
+    font-size: .8rem;
+    border: 1px solid rgba(217, 180, 90, .3);
+    animation: pop .5s ease
+}
+
+.spark {
+    position: fixed;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold2);
+    box-shadow: 0 0 10px var(--gold);
+    pointer-events: none;
+    z-index: 50;
+    transform: translate(-50%, -50%);
+    animation: spark .7s ease-out forwards
+}
+
+.progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0;
+    background: linear-gradient(90deg, var(--gold), var(--copper));
+    z-index: 30;
+    transition: width .15s
+}
+
+.totop {
+    position: fixed;
+    right: 16px;
+    bottom: 44px;
+    z-index: 30;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--gold);
+    color: #241a05;
+    font-size: 1.2rem;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+    animation: pop .3s ease
+}
+
+.keys {
+    list-style: none;
+    padding: 0;
+    line-height: 2.2
+}
+
+.keys b {
+    display: inline-block;
+    min-width: 58px;
+    padding: 2px 10px;
+    margin-right: 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .1);
+    text-align: center
+}
+
+#help {
+    z-index: 60
+}
+
+@keyframes spark {
+    to {
+        opacity: 0;
+        transform: translate(-50%, calc(-50% + 18px)) scale(.2)
+    }
+}
