@@ -16,6 +16,7 @@ const api = async (p) => {
   }
   return { failed: true };
 };
+const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
 const COCKTAIL = "https://www.thecocktaildb.com/api/json/v1/1/";
 // Drinks are reshaped to look like meals, so cards, recipes, saving and cook mode all just work
 const cocktail = async (p) => {
@@ -27,7 +28,7 @@ const cocktail = async (p) => {
 };
 const store = {
   get: (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v === null ? d : v; } catch (e) { return d; } },
-  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 const show = (id) => document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("show", s.id === id));
 
@@ -79,9 +80,9 @@ function cards(el, meals, counts) {
     hs.setAttribute("role", "button");
     hs.setAttribute("aria-label", "Save recipe");
     const saved = favs().some((x) => x.idMeal === m.idMeal);
-    hs.textContent = saved ? "♥" : "♡";
+    hs.innerHTML = HEART;
     hs.classList.toggle("on", saved);
-    hs.onclick = (e) => { e.stopPropagation(); const on = toggleFav(m); hs.textContent = on ? "♥" : "♡"; hs.classList.toggle("on", on); };
+    hs.onclick = (e) => { e.stopPropagation(); const on = toggleFav(m); hs.classList.toggle("on", on); hs.classList.remove("pop"); void hs.offsetWidth; if (on) hs.classList.add("pop"); };
     c.appendChild(hs);
     tilt(c);
     el.appendChild(c);
@@ -134,7 +135,7 @@ let famousLoaded = false;
 async function loadFamous() {
   if (famousLoaded) return;
   famousLoaded = true;
-  const names = ["Lasagne", "Beef Wellington", "Sushi", "Spaghetti Bolognese", "Kung Pao", "Tandoori", "Poutine", "Shakshuka", "Big Mac", "Margherita", "Brisket", "Pad Thai", "Ramen", "Tacos", "Paella", "Pancakes", "Alfredo", "Moussaka", "Pho", "Tiramisu", "Cheesecake", "Fish pie", "Biryani", "Katsu", "Burrito", "Ratatouille", "Pie", "Stew", "Chocolate", "Salmon"];
+  const names = ["Lasagne","Beef Wellington","Sushi","Spaghetti Bolognese","Kung Pao","Tandoori","Poutine","Shakshuka","Big Mac","Margherita","Brisket","Pad Thai","Ramen","Tacos","Paella","Pancakes","Alfredo","Moussaka","Pho","Tiramisu","Cheesecake","Fish pie","Biryani","Katsu","Burrito","Ratatouille","Pie","Stew","Chocolate","Salmon"];
   const res = await Promise.all(names.map((n) => api("search.php?s=" + encodeURIComponent(n))));
   const seen = new Set(), meals = [];
   res.forEach((r) => (r.meals || []).slice(0, 2).forEach((m) => { if (!seen.has(m.idMeal)) { seen.add(m.idMeal); meals.push(m); } }));
@@ -221,21 +222,21 @@ function renderRecipe() {
     `<p class="meta">${esc(m.strArea || "")} · ${esc(m.strCategory || "")}${cookTime(steps)}</p>` +
     `<div class="serv"><button id="sm" class="chip">−</button><span>Serves ${serv}</span><button id="sp" class="chip">+</button></div>` +
     `<h3>Ingredients</h3><ul class="ing">${ing.map((i, n) => `<li style="animation-delay:${n * 40}ms"><b>${esc(scale(i.q, f))}</b> ${esc(i.n)}</li>`).join("")}</ul>` +
-    `<div class="row"><button id="addList" class="gold">Add to shopping list</button><button id="cookBtn" class="gold">Start cooking</button><button id="favR" class="chip">♡ Save</button><button id="printR" class="chip">Print</button><button id="shareR" class="chip">Send</button></div>` +
+    `<div class="row"><button id="addList" class="gold">Add to shopping list</button><button id="cookBtn" class="gold">Start cooking</button><button id="favR" class="chip">Save</button><button id="printR" class="chip">Print</button><button id="shareR" class="chip">Send</button></div>` +
     `<h3>Method</h3><ol class="steps">${steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>`;
   document.querySelectorAll("#rBody .ing li").forEach((li) => (li.onclick = () => li.classList.toggle("got")));
   $("sm").onclick = () => { serv = Math.max(1, serv - 1); renderRecipe(); };
   $("sp").onclick = () => { serv = Math.min(24, serv + 1); renderRecipe(); };
   $("addList").onclick = () => {
     const l = store.get("rr_list", []);
-    ing.forEach((i) => l.push({ t: (scale(i.q, f) + " " + i.n).trim(), done: false }));
+    ing.forEach((i) => l.push({ t: (scale(i.q, f) + " " + i.n).trim(), done: false, r: m.strMeal }));
     store.set("rr_list", l);
     renderList();
     $("addList").textContent = "Added ✓";
   };
   $("cookBtn").onclick = startCook;
-  $("favR").textContent = favs().some((x) => x.idMeal === m.idMeal) ? "♥ Saved" : "♡ Save";
-  $("favR").onclick = () => { $("favR").textContent = toggleFav(m) ? "♥ Saved" : "♡ Save"; };
+  $("favR").textContent = favs().some((x) => x.idMeal === m.idMeal) ? "Saved ✓" : "Save";
+  $("favR").onclick = () => { $("favR").textContent = toggleFav(m) ? "Saved ✓" : "Save"; };
   $("printR").onclick = () => window.print();
   $("shareR").onclick = () => openSend();
   const me = cur;
@@ -264,18 +265,50 @@ function renderList() {
   const l = store.get("rr_list", []), ul = $("shop");
   ul.innerHTML = "";
   $("lMsg").textContent = l.length ? "Tap an item to tick it off." : "Your list is empty. Open a recipe and add its ingredients.";
+  const groups = new Map();
   l.forEach((x, i) => {
-    const li = document.createElement("li");
-    if (x.done) li.className = "done";
-    const t = document.createElement("span");
-    t.textContent = x.t;
+    const k = x.r || "Other items";
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(i);
+  });
+  groups.forEach((idxs, name) => {
+    const sec = document.createElement("li");
+    sec.className = "group";
+    const done = idxs.filter((i) => l[i].done).length;
+    const head = document.createElement("div");
+    head.className = "ghead";
+    const h = document.createElement("h4");
+    h.textContent = name;
+    const cnt = document.createElement("span");
+    cnt.className = "gcount";
+    cnt.textContent = done + "/" + idxs.length;
     const rm = document.createElement("button");
     rm.className = "chip";
-    rm.textContent = "×";
-    li.onclick = () => { l[i].done = !l[i].done; store.set("rr_list", l); renderList(); };
-    rm.onclick = (e) => { e.stopPropagation(); l.splice(i, 1); store.set("rr_list", l); renderList(); };
-    li.append(t, rm);
-    ul.appendChild(li);
+    rm.textContent = "Remove";
+    rm.onclick = () => { store.set("rr_list", l.filter((x) => (x.r || "Other items") !== name)); renderList(); };
+    head.append(h, cnt, rm);
+    const bar = document.createElement("div");
+    bar.className = "gbar";
+    const fill = document.createElement("i");
+    fill.style.width = (done / idxs.length) * 100 + "%";
+    bar.appendChild(fill);
+    const items = document.createElement("ul");
+    items.className = "gitems";
+    idxs.forEach((i) => {
+      const li = document.createElement("li");
+      if (l[i].done) li.className = "done";
+      const t = document.createElement("span");
+      t.textContent = l[i].t;
+      const x = document.createElement("button");
+      x.className = "chip";
+      x.textContent = "×";
+      li.onclick = () => { l[i].done = !l[i].done; store.set("rr_list", l); renderList(); };
+      x.onclick = (e) => { e.stopPropagation(); l.splice(i, 1); store.set("rr_list", l); renderList(); };
+      li.append(t, x);
+      items.appendChild(li);
+    });
+    sec.append(head, bar, items);
+    ul.appendChild(sec);
   });
 }
 $("clearList").onclick = () => { store.set("rr_list", []); renderList(); };
@@ -286,7 +319,7 @@ let ci = 0, tLeft = 0, tId = null;
 function startCook() {
   ci = 0;
   $("cook").hidden = false;
-  if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(() => { });
+  if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(() => {});
   renderCook();
 }
 
@@ -318,7 +351,7 @@ function ding() {
     g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 1.2);
     o.connect(g); g.connect(a.destination);
     o.start(); o.stop(a.currentTime + 1.2);
-  } catch (e) { }
+  } catch (e) {}
   if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
 }
 
@@ -412,36 +445,46 @@ async function loadPick() {
   el.append(tag, h, b);
 }
 
+const AREA_TERMS = {
+  Indian: ["curry", "masala", "tikka", "biryani", "dal", "korma", "paneer", "samosa", "naan", "tandoori", "vindaloo", "aloo", "chana", "saag", "pakora"],
+  Nepalese: ["momo", "dal bhat", "nepal"],
+};
+
+async function areaMeals(a) {
+  const r = await api("filter.php?a=" + encodeURIComponent(a));
+  const ms = r.meals ? r.meals.slice() : [];
+  const terms = AREA_TERMS[a];
+  if (terms) {
+    const seen = new Set(ms.map((m) => m.idMeal));
+    const res = await Promise.all(terms.map((t) => api("search.php?s=" + encodeURIComponent(t))));
+    res.forEach((x) => (x.meals || []).forEach((m) => { if (m.strArea === a && !seen.has(m.idMeal)) { seen.add(m.idMeal); ms.push(m); } }));
+  }
+  return ms;
+}
+
 async function loadAreas() {
   const el = $("areaList");
   el.innerHTML = '<p class="msg">Loading cuisines...</p>';
   const d = await api("list.php?a=list");
-  const areas = (d.meals || []).map((a) => a.strArea);
-  const lists = [];
-  for (let i = 0; i < areas.length; i += 5) {
-    lists.push(...(await Promise.all(areas.slice(i, i + 5).map((a) => api("filter.php?a=" + encodeURIComponent(a))))));
-  }
+  const names = [...new Set([...(d.meals || []).map((a) => a.strArea), "Indian", "Nepalese"])].filter((a) => a !== "Unknown").sort();
   el.innerHTML = "";
-  let first = null;
-  areas.forEach((a, i) => {
-    const r = lists[i];
-    const ms = r.meals || [];
-    if (!ms.length && !r.failed) return; // truly empty cuisine
+  let start = null;
+  names.forEach((a) => {
     const b = document.createElement("button");
     b.className = "chip";
-    b.textContent = r.failed ? a : a + " (" + ms.length + ")";
+    b.textContent = a;
     b.onclick = async () => {
       document.querySelectorAll("#areaList .chip").forEach((x) => x.classList.toggle("on", x === b));
-      if (r.failed) {
-        $("aRes").innerHTML = '<p class="empty">Loading...</p>';
-        const again = await api("filter.php?a=" + encodeURIComponent(a));
-        cards($("aRes"), again.meals);
-      } else cards($("aRes"), ms);
+      $("aRes").innerHTML = '<p class="empty">Loading...</p>';
+      const ms = await areaMeals(a);
+      b.textContent = a + " (" + ms.length + ")";
+      if (ms.length) cards($("aRes"), ms);
+      else $("aRes").innerHTML = '<p class="empty">No ' + esc(a) + ' recipes in the free recipe data yet. The community section will fill gaps like this.</p>';
     };
     el.appendChild(b);
-    first = first || b;
+    if (a === "Indian") start = b;
   });
-  if (first) first.click(); else el.textContent = "Couldn't load cuisines. Check your connection and refresh.";
+  (start || el.querySelector(".chip") || { click() {} }).click();
 }
 
 // ---------- Tilt, confetti, saved, viewed, trending, moods ----------
@@ -513,7 +556,7 @@ async function loadTrend() {
 function buildMoods() {
   if ($("moods").children.length) return;
   [["Comfort food", "stew"], ["Date night", "steak"], ["Sweet tooth", "cake"], ["Light & fresh", "salad"],
-  ["Spicy", "chilli"], ["Brunch", "egg"], ["Cozy soup", "soup"], ["Crowd pleaser", "chicken"]].forEach(([label, term]) => {
+   ["Spicy", "chilli"], ["Brunch", "egg"], ["Cozy soup", "soup"], ["Crowd pleaser", "chicken"]].forEach(([label, term]) => {
     const b = document.createElement("button");
     b.className = "chip";
     b.textContent = label;
@@ -523,7 +566,9 @@ function buildMoods() {
 }
 
 $("copyList").onclick = () => {
-  const text = store.get("rr_list", []).map((x) => "- " + x.t).join("\n");
+  const by = {};
+  store.get("rr_list", []).forEach((x) => (by[x.r || "Other items"] = by[x.r || "Other items"] || []).push("- " + x.t));
+  const text = Object.entries(by).map(([k, v]) => k + "\n" + v.join("\n")).join("\n\n");
   if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { $("copyList").textContent = "Copied ✓"; setTimeout(() => ($("copyList").textContent = "Copy list"), 1500); });
 };
 
@@ -564,7 +609,7 @@ async function loadDrinks() {
   try {
     const cats = await (await fetch(COCKTAIL + "list.php?c=list")).json();
     (cats.drinks || []).forEach((c) => pick(c.strCategory, "filter.php?c=" + enc(c.strCategory)));
-  } catch (e) { }
+  } catch (e) {}
   first.click();
 }
 
@@ -591,9 +636,9 @@ function openFromHash() {
 }
 
 $("cSpeak").onclick = () => {
-  try { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(cur.steps[ci])); } catch (e) { }
+  try { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(cur.steps[ci])); } catch (e) {}
 };
-$("cClose").addEventListener("click", () => { try { speechSynthesis.cancel(); } catch (e) { } });
+$("cClose").addEventListener("click", () => { try { speechSynthesis.cancel(); } catch (e) {} });
 
 // Keyboard shortcuts
 const tabBtns = [...document.querySelectorAll("#tabs button")];
@@ -774,10 +819,59 @@ async function openSend() {
         card.toBlob(async (b) => {
           const file = new File([b], "recipe.png", { type: "image/png" });
           if (navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
-          try { await navigator.share(data); } catch (e) { }
+          try { await navigator.share(data); } catch (e) {}
         });
-      } catch (e) { navigator.share(data).catch(() => { }); }
+      } catch (e) { navigator.share(data).catch(() => {}); }
     };
   } else $("sShare").hidden = true;
 }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("send")) $("send").remove(); });
+
+// ---------- Custom shopping list items ----------
+function addOwnItem() {
+  const v = $("li").value.trim();
+  if (!v) return;
+  const l = store.get("rr_list", []);
+  l.push({ t: v, done: false, r: "Other items" });
+  store.set("rr_list", l);
+  $("li").value = "";
+  renderList();
+}
+$("liAdd").onclick = addOwnItem;
+$("li").addEventListener("keydown", (e) => { if (e.key === "Enter") addOwnItem(); });
+
+// ---------- Carousels: arrows, edge fade, gentle auto-scroll ----------
+function makeCarousel(el) {
+  const w = document.createElement("div");
+  w.className = "carousel";
+  el.parentNode.insertBefore(w, el);
+  w.appendChild(el);
+  const step = (d) => {
+    const c = el.querySelector(".card");
+    if (!c) return;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+    if (d > 0 && atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
+    else el.scrollBy({ left: d * (c.offsetWidth + 16), behavior: "smooth" });
+  };
+  const mk = (t, d, cls) => {
+    const b = document.createElement("button");
+    b.className = "arrow " + cls;
+    b.textContent = t;
+    b.setAttribute("aria-label", d < 0 ? "Previous" : "Next");
+    b.onclick = () => step(d);
+    w.appendChild(b);
+    return b;
+  };
+  const a = mk("‹", -1, "prev"), b = mk("›", 1, "next");
+  const sync = () => { a.hidden = b.hidden = el.children.length < 2; };
+  new MutationObserver(sync).observe(el, { childList: true });
+  sync();
+  let hover = false;
+  w.onmouseenter = () => (hover = true);
+  w.onmouseleave = () => (hover = false);
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    setInterval(() => { if (!hover && !document.hidden && el.offsetParent) step(1); }, 4500);
+  }
+}
+makeCarousel($("trend"));
+makeCarousel($("rv"));
