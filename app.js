@@ -875,3 +875,26 @@ function makeCarousel(el) {
 }
 makeCarousel($("trend"));
 makeCarousel($("rv"));
+
+// ---------- Drag to scroll (click and drag the rows with your mouse) ----------
+function dragScroll(el) {
+  let down = false, moved = false, sx = 0, sl = 0;
+  el.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    down = true; moved = false; sx = e.clientX; sl = el.scrollLeft;
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!down) return;
+    const dx = e.clientX - sx;
+    if (!moved && Math.abs(dx) > 6) { moved = true; el.classList.add("dragging"); }
+    if (moved) el.scrollLeft = sl - dx;
+  });
+  window.addEventListener("pointerup", () => {
+    if (!down) return;
+    down = false;
+    el.classList.remove("dragging");
+  });
+  el.addEventListener("click", (e) => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+}
+dragScroll($("trend"));
+dragScroll($("rv"));

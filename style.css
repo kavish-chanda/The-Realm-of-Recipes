@@ -1472,3 +1472,61 @@ ul.shop>li.group {
         opacity: .85
     }
 }
+
+/* ---------- Styled scrollbars (the sliders) and drag-to-scroll ---------- */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) rgba(255, 255, 255, .08)
+}
+
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, .06);
+    border-radius: 999px
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, var(--gold2), var(--copper));
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    transition: background .2s
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #fff1b8, var(--gold));
+    background-clip: padding-box
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent
+}
+
+#trend,
+#rv {
+    padding-bottom: 20px;
+    scrollbar-width: auto
+}
+
+#trend::-webkit-scrollbar,
+#rv::-webkit-scrollbar {
+    height: 14px
+}
+
+.carousel>div:not(.arrow) {
+    cursor: grab
+}
+
+.carousel>div.dragging {
+    cursor: grabbing;
+    scroll-snap-type: none !important;
+    scroll-behavior: auto
+}
+
+.carousel>div.dragging .card {
+    pointer-events: none
+}
