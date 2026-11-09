@@ -5,16 +5,16 @@ const apiCache = new Map();
 const api = async (p) => {
   const cacheable = !p.startsWith("random");
   if (cacheable && apiCache.has(p)) return apiCache.get(p);
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     try {
       const r = await fetch(API + p);
       if (!r.ok) throw new Error("bad");
       const d = await r.json();
       if (cacheable) apiCache.set(p, d);
       return d;
-    } catch (e) { await new Promise((res) => setTimeout(res, 400)); }
+    } catch (e) { await new Promise((res) => setTimeout(res, 500 * (i + 1))); }
   }
-  return {};
+  return { failed: true };
 };
 const COCKTAIL = "https://www.thecocktaildb.com/api/json/v1/1/";
 // Drinks are reshaped to look like meals, so cards, recipes, saving and cook mode all just work
@@ -27,7 +27,7 @@ const cocktail = async (p) => {
 };
 const store = {
   get: (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v === null ? d : v; } catch (e) { return d; } },
-  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } },
 };
 const show = (id) => document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("show", s.id === id));
 
@@ -45,14 +45,17 @@ for (let i = 0; i < 30; i++) {
 $("enterRealm").onclick = () => { show("bookStage"); setTimeout(() => $("book").classList.add("open"), 900); };
 $("openBook").onclick = () => {
   $("book").classList.add("turn");
-  setTimeout(() => { show("cookbook"); loadFamous(); loadCategories(); loadAreas(); loadDrinks(); loadPick(); loadTrend(); renderViewed(); openFromHash(); updateCooked(); buildMoods(); renderList(); }, 800);
+  setTimeout(enterCookbook, 800);
 };
 
 // Tabs
+const lazyDone = {};
 document.querySelectorAll("#tabs button").forEach((b) => (b.onclick = () => {
   document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
   document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("active", p.id === "pane-" + b.dataset.tab));
   if (b.dataset.tab === "saved") renderSaved();
+  const lazy = { famous: loadFamous, categories: loadCategories, cuisines: loadAreas, drinks: loadDrinks };
+  if (lazy[b.dataset.tab] && !lazyDone[b.dataset.tab]) { lazyDone[b.dataset.tab] = true; lazy[b.dataset.tab](); }
 }));
 
 // Recipe cards
@@ -131,7 +134,7 @@ let famousLoaded = false;
 async function loadFamous() {
   if (famousLoaded) return;
   famousLoaded = true;
-  const names = ["Lasagne","Beef Wellington","Sushi","Spaghetti Bolognese","Kung Pao","Tandoori","Poutine","Shakshuka","Big Mac","Margherita","Brisket","Pad Thai","Ramen","Tacos","Paella","Pancakes","Alfredo","Moussaka","Pho","Tiramisu","Cheesecake","Fish pie","Biryani","Katsu","Burrito","Ratatouille","Pie","Stew","Chocolate","Salmon"];
+  const names = ["Lasagne", "Beef Wellington", "Sushi", "Spaghetti Bolognese", "Kung Pao", "Tandoori", "Poutine", "Shakshuka", "Big Mac", "Margherita", "Brisket", "Pad Thai", "Ramen", "Tacos", "Paella", "Pancakes", "Alfredo", "Moussaka", "Pho", "Tiramisu", "Cheesecake", "Fish pie", "Biryani", "Katsu", "Burrito", "Ratatouille", "Pie", "Stew", "Chocolate", "Salmon"];
   const res = await Promise.all(names.map((n) => api("search.php?s=" + encodeURIComponent(n))));
   const seen = new Set(), meals = [];
   res.forEach((r) => (r.meals || []).slice(0, 2).forEach((m) => { if (!seen.has(m.idMeal)) { seen.add(m.idMeal); meals.push(m); } }));
@@ -218,7 +221,7 @@ function renderRecipe() {
     `<p class="meta">${esc(m.strArea || "")} · ${esc(m.strCategory || "")}${cookTime(steps)}</p>` +
     `<div class="serv"><button id="sm" class="chip">−</button><span>Serves ${serv}</span><button id="sp" class="chip">+</button></div>` +
     `<h3>Ingredients</h3><ul class="ing">${ing.map((i, n) => `<li style="animation-delay:${n * 40}ms"><b>${esc(scale(i.q, f))}</b> ${esc(i.n)}</li>`).join("")}</ul>` +
-    `<div class="row"><button id="addList" class="gold">Add to shopping list</button><button id="cookBtn" class="gold">Start cooking</button><button id="favR" class="chip">♡ Save</button><button id="printR" class="chip">Print</button><button id="shareR" class="chip">Share</button></div>` +
+    `<div class="row"><button id="addList" class="gold">Add to shopping list</button><button id="cookBtn" class="gold">Start cooking</button><button id="favR" class="chip">♡ Save</button><button id="printR" class="chip">Print</button><button id="shareR" class="chip">Send</button></div>` +
     `<h3>Method</h3><ol class="steps">${steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>`;
   document.querySelectorAll("#rBody .ing li").forEach((li) => (li.onclick = () => li.classList.toggle("got")));
   $("sm").onclick = () => { serv = Math.max(1, serv - 1); renderRecipe(); };
@@ -234,11 +237,7 @@ function renderRecipe() {
   $("favR").textContent = favs().some((x) => x.idMeal === m.idMeal) ? "♥ Saved" : "♡ Save";
   $("favR").onclick = () => { $("favR").textContent = toggleFav(m) ? "♥ Saved" : "♡ Save"; };
   $("printR").onclick = () => window.print();
-  $("shareR").onclick = () => {
-    const link = location.href.split("#")[0] + "#r=" + m.idMeal;
-    if (navigator.clipboard) navigator.clipboard.writeText(link);
-    $("shareR").textContent = "Link copied ✓";
-  };
+  $("shareR").onclick = () => openSend();
   const me = cur;
   if (me.more) addMore();
   else if (!me.fetching) {
@@ -287,7 +286,7 @@ let ci = 0, tLeft = 0, tId = null;
 function startCook() {
   ci = 0;
   $("cook").hidden = false;
-  if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(() => {});
+  if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(() => { });
   renderCook();
 }
 
@@ -319,7 +318,7 @@ function ding() {
     g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 1.2);
     o.connect(g); g.connect(a.destination);
     o.start(); o.stop(a.currentTime + 1.2);
-  } catch (e) {}
+  } catch (e) { }
   if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
 }
 
@@ -418,18 +417,26 @@ async function loadAreas() {
   el.innerHTML = '<p class="msg">Loading cuisines...</p>';
   const d = await api("list.php?a=list");
   const areas = (d.meals || []).map((a) => a.strArea);
-  const lists = await Promise.all(areas.map((a) => api("filter.php?a=" + encodeURIComponent(a))));
+  const lists = [];
+  for (let i = 0; i < areas.length; i += 5) {
+    lists.push(...(await Promise.all(areas.slice(i, i + 5).map((a) => api("filter.php?a=" + encodeURIComponent(a))))));
+  }
   el.innerHTML = "";
   let first = null;
   areas.forEach((a, i) => {
-    const ms = lists[i].meals || [];
-    if (!ms.length) return; // only show cuisines that really have recipes
+    const r = lists[i];
+    const ms = r.meals || [];
+    if (!ms.length && !r.failed) return; // truly empty cuisine
     const b = document.createElement("button");
     b.className = "chip";
-    b.textContent = a + " (" + ms.length + ")";
-    b.onclick = () => {
+    b.textContent = r.failed ? a : a + " (" + ms.length + ")";
+    b.onclick = async () => {
       document.querySelectorAll("#areaList .chip").forEach((x) => x.classList.toggle("on", x === b));
-      cards($("aRes"), ms);
+      if (r.failed) {
+        $("aRes").innerHTML = '<p class="empty">Loading...</p>';
+        const again = await api("filter.php?a=" + encodeURIComponent(a));
+        cards($("aRes"), again.meals);
+      } else cards($("aRes"), ms);
     };
     el.appendChild(b);
     first = first || b;
@@ -506,7 +513,7 @@ async function loadTrend() {
 function buildMoods() {
   if ($("moods").children.length) return;
   [["Comfort food", "stew"], ["Date night", "steak"], ["Sweet tooth", "cake"], ["Light & fresh", "salad"],
-   ["Spicy", "chilli"], ["Brunch", "egg"], ["Cozy soup", "soup"], ["Crowd pleaser", "chicken"]].forEach(([label, term]) => {
+  ["Spicy", "chilli"], ["Brunch", "egg"], ["Cozy soup", "soup"], ["Crowd pleaser", "chicken"]].forEach(([label, term]) => {
     const b = document.createElement("button");
     b.className = "chip";
     b.textContent = label;
@@ -557,7 +564,7 @@ async function loadDrinks() {
   try {
     const cats = await (await fetch(COCKTAIL + "list.php?c=list")).json();
     (cats.drinks || []).forEach((c) => pick(c.strCategory, "filter.php?c=" + enc(c.strCategory)));
-  } catch (e) {}
+  } catch (e) { }
   first.click();
 }
 
@@ -584,9 +591,9 @@ function openFromHash() {
 }
 
 $("cSpeak").onclick = () => {
-  try { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(cur.steps[ci])); } catch (e) {}
+  try { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(cur.steps[ci])); } catch (e) { }
 };
-$("cClose").addEventListener("click", () => { try { speechSynthesis.cancel(); } catch (e) {} });
+$("cClose").addEventListener("click", () => { try { speechSynthesis.cancel(); } catch (e) { } });
 
 // Keyboard shortcuts
 const tabBtns = [...document.querySelectorAll("#tabs button")];
@@ -642,3 +649,135 @@ $("cookbook").addEventListener("scroll", () => {
   progress.style.width = (max > 0 ? (c.scrollTop / max) * 100 : 0) + "%";
   toTop.hidden = c.scrollTop < 500;
 });
+
+// ---------- Enter the cookbook (also used by shared links) ----------
+function enterCookbook() {
+  show("cookbook");
+  loadPick(); loadTrend(); renderViewed(); buildMoods(); renderList(); updateCooked();
+  openFromHash();
+}
+if (/^#r=/.test(location.hash)) enterCookbook(); // someone opened a shared recipe: go straight to it
+
+// ---------- Send a recipe: text, email, or a recipe card image ----------
+const recipeLink = () => location.href.split("#")[0] + "#r=" + cur.m.idMeal;
+
+function roundRect(x, a, b, w, h, r) {
+  x.beginPath(); x.moveTo(a + r, b);
+  x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r);
+  x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath();
+}
+
+function wrapText(x, text, px, py, maxW, lh, maxLines) {
+  const lines = [];
+  let line = "";
+  text.split(" ").forEach((w) => {
+    const t = line ? line + " " + w : w;
+    if (x.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t;
+  });
+  lines.push(line);
+  lines.slice(0, maxLines).forEach((l, i) => x.fillText(l, px, py + i * lh));
+  return py + Math.min(lines.length, maxLines) * lh;
+}
+
+const loadImg = (src) => new Promise((res) => {
+  const i = new Image();
+  i.crossOrigin = "anonymous";
+  i.onload = () => res(i);
+  i.onerror = () => res(null);
+  i.src = src;
+});
+
+async function drawCard() {
+  const { m, ing } = cur, W = 1080, H = 1350;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const x = c.getContext("2d");
+  const g = x.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, "#16402b"); g.addColorStop(1, "#0c2417");
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.strokeStyle = "#d9b45a"; x.lineWidth = 6; x.strokeRect(30, 30, W - 60, H - 60);
+  x.lineWidth = 2; x.strokeRect(46, 46, W - 92, H - 92);
+
+  const img = await loadImg(m.strMealThumb + (/themealdb/.test(m.strMealThumb) ? "/large" : ""));
+  let y = 170;
+  if (img) {
+    x.save(); roundRect(x, 90, 90, W - 180, 420, 28); x.clip();
+    const r = Math.max((W - 180) / img.width, 420 / img.height), w = img.width * r, h = img.height * r;
+    x.drawImage(img, 90 + (W - 180 - w) / 2, 90 + (420 - h) / 2, w, h);
+    x.restore();
+    y = 590;
+  }
+  x.textAlign = "left";
+  x.fillStyle = "#f0d58a"; x.font = '700 64px "Cormorant Garamond", Georgia, serif';
+  y = wrapText(x, m.strMeal, 90, y, W - 180, 70, 2);
+  x.fillStyle = "#cfd8c8"; x.font = '28px "DM Sans", sans-serif';
+  x.fillText([m.strArea, m.strCategory].filter(Boolean).join("  ·  ") + (cur.drink ? "" : "  ·  Serves " + serv), 90, y);
+  y += 60;
+  x.fillStyle = "#d9b45a"; x.font = '700 28px "DM Sans", sans-serif';
+  x.fillText("INGREDIENTS", 90, y); y += 44;
+  x.fillStyle = "#f7f0de"; x.font = '30px "DM Sans", sans-serif';
+  const f = serv / (cur.base || 4);
+  ing.slice(0, 8).forEach((i) => { x.fillText("• " + (scale(i.q, f) + " " + i.n).trim().slice(0, 44), 90, y); y += 42; });
+  if (ing.length > 8) { x.fillStyle = "#9fb0a3"; x.fillText("+ " + (ing.length - 8) + " more", 90, y); }
+  x.textAlign = "center";
+  x.fillStyle = "#d9b45a"; x.font = '700 36px "Cormorant Garamond", Georgia, serif';
+  x.fillText("The Realm of Recipes", W / 2, H - 120);
+  x.fillStyle = "#9fb0a3"; x.font = '24px "DM Sans", sans-serif';
+  x.fillText("by Kavish", W / 2, H - 82);
+  return c;
+}
+
+async function openSend() {
+  if ($("send")) $("send").remove();
+  const o = document.createElement("div");
+  o.id = "send";
+  o.className = "overlay";
+  o.innerHTML = '<div class="sheet"><button class="x" aria-label="Close">×</button><h2>Send this recipe</h2>' +
+    '<p class="msg">Anyone who opens the link can read the recipe and save it to their own cookbook.</p>' +
+    '<canvas id="cardPrev" class="cardprev"></canvas><p id="sendMsg" class="msg"></p><div class="row">' +
+    '<button id="sText" class="gold">Text it</button><button id="sMail" class="gold">Email it</button>' +
+    '<button id="sShare" class="chip">Share…</button><button id="sSave" class="chip">Save card</button><button id="sCopy" class="chip">Copy link</button></div></div>';
+  o.onclick = (e) => { if (e.target === o || e.target.className === "x") o.remove(); };
+  document.body.appendChild(o);
+
+  const card = await drawCard();
+  const p = $("cardPrev");
+  p.width = card.width; p.height = card.height;
+  p.getContext("2d").drawImage(card, 0, 0);
+
+  const link = recipeLink(), title = cur.m.strMeal, f = serv / (cur.base || 4);
+  $("sText").onclick = () => { location.href = "sms:?&body=" + encodeURIComponent("I thought you'd like this recipe: " + title + "\n" + link); };
+  $("sMail").onclick = () => {
+    const body = "Open it in The Realm of Recipes: " + link + "\n\n" + title + "\n\nIngredients:\n" +
+      cur.ing.map((i) => "- " + (scale(i.q, f) + " " + i.n).trim()).join("\n") + "\n\nMethod:\n" +
+      cur.steps.map((s, i) => (i + 1) + ". " + s).join("\n");
+    location.href = "mailto:?subject=" + encodeURIComponent("Recipe: " + title) + "&body=" + encodeURIComponent(body.slice(0, 1800));
+  };
+  $("sCopy").onclick = () => {
+    if (navigator.clipboard) navigator.clipboard.writeText(link);
+    $("sCopy").textContent = "Copied ✓";
+  };
+  $("sSave").onclick = () => {
+    try {
+      card.toBlob((b) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(b);
+        a.download = title.replace(/[^\w]+/g, "-") + ".png";
+        a.click();
+      });
+    } catch (e) { $("sendMsg").textContent = "Couldn't save the card image on this device."; }
+  };
+  if (navigator.share) {
+    $("sShare").onclick = () => {
+      const data = { title, text: "Try this recipe: " + title, url: link };
+      try {
+        card.toBlob(async (b) => {
+          const file = new File([b], "recipe.png", { type: "image/png" });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) data.files = [file];
+          try { await navigator.share(data); } catch (e) { }
+        });
+      } catch (e) { navigator.share(data).catch(() => { }); }
+    };
+  } else $("sShare").hidden = true;
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("send")) $("send").remove(); });

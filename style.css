@@ -1298,3 +1298,35 @@ input[type=search]:focus {
         transform: translate(-50%, calc(-50% + 18px)) scale(.2)
     }
 }
+
+/* ---------- Hearts always visible, logo, send card ---------- */
+.heart {
+    opacity: 1;
+    transform: none
+}
+
+.logo {
+    width: 104px;
+    height: 104px;
+    margin-bottom: 12px;
+    animation: float 5s ease-in-out infinite;
+    filter: drop-shadow(0 10px 26px rgba(0, 0, 0, .45))
+}
+
+.cardprev {
+    width: 100%;
+    height: auto;
+    border-radius: 14px;
+    margin: 12px 0;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, .4)
+}
+
+#send {
+    z-index: 60
+}
+
+@keyframes float {
+    50% {
+        transform: translateY(-8px)
+    }
+}
